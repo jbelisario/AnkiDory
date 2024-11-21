@@ -5,7 +5,7 @@ from __future__ import annotations
 
 import pprint
 import time
-from typing import NewType
+from typing import NewType, Any, Dict, List, Optional, Tuple, Union
 
 import anki  # pylint: disable=unused-import
 import anki.collection
@@ -18,6 +18,7 @@ from anki.consts import *
 from anki.models import NotetypeDict, TemplateDict
 from anki.notes import Note
 from anki.sound import AVTag
+from anki.utils import int_time
 
 # Cards
 ##########################################################################
@@ -48,6 +49,8 @@ class Card(DeprecatedNamesMixin):
     type: CardType
     memory_state: FSRSMemoryState | None
     desired_retention: float | None
+    _hint_history: List[str]
+    _hints_used: int
 
     def __init__(
         self,
@@ -58,6 +61,8 @@ class Card(DeprecatedNamesMixin):
         self.col = col.weakref()
         self.timer_started: float | None = None
         self._render_output: anki.template.TemplateRenderOutput | None = None
+        self._hint_history: List[str] = []
+        self._hints_used: int = 0
         if id:
             # existing card
             self.id = id
@@ -234,6 +239,26 @@ class Card(DeprecatedNamesMixin):
     @deprecated(info="handled by template rendering")
     def is_empty(self) -> bool:
         return False
+
+    def add_hint(self, hint: str) -> None:
+        """Add a hint to the card's hint history."""
+        self._hint_history.append(hint)
+        self._hints_used += 1
+        self.mod = int_time()
+
+    def get_hints(self) -> List[str]:
+        """Get all hints previously shown for this card."""
+        return self._hint_history.copy()
+
+    def get_hints_used(self) -> int:
+        """Get the number of hints used for this card."""
+        return self._hints_used
+
+    def clear_hints(self) -> None:
+        """Clear all hints for this card."""
+        self._hint_history.clear()
+        self._hints_used = 0
+        self.mod = int_time()
 
 
 Card.register_deprecated_aliases(

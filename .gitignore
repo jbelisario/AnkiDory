@@ -17,3 +17,5 @@ node_modules
 /extra
 yarn-error.log
 ts/.svelte-kit
+# Dory specific
+pylib/anki/config.ini

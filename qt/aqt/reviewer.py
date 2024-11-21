@@ -56,7 +56,7 @@ from aqt.utils import (
     tooltip,
     tr,
 )
-
+from aqt.guide_me import GuideMe
 
 class RefreshNeeded(Enum):
     NOTE_TEXT = auto()
@@ -167,6 +167,7 @@ class Reviewer:
         self._show_question_timer: QTimer | None = None
         self._show_answer_timer: QTimer | None = None
         self.auto_advance_enabled = False
+        self.guide_me = GuideMe(mw)
         gui_hooks.av_player_did_end_playing.append(self._on_av_player_did_end_playing)
 
     def show(self) -> None:
@@ -370,7 +371,6 @@ class Reviewer:
     def _showQuestion(self) -> None:
         self._reps += 1
         self.state = "question"
-        self.typedAnswer: str | None = None
         c = self.card
         # grab the question and play audio
         q = c.question()
@@ -685,6 +685,9 @@ class Reviewer:
             self.mw.toolbarWeb.update_background_image()
         elif url == "statesMutated":
             self._states_mutated = True
+        elif url == "guide":
+            self.guide_me.show_hint(self.card)
+            return
         else:
             print("unrecognized anki link:", url)
 
@@ -894,38 +897,49 @@ timerStopped = false;
         return buttons_tuple
 
     def _answerButtons(self) -> str:
+        if not self.card:
+            return ""
+
+        buf = ""
         default = self._defaultEase()
 
-        assert isinstance(self.mw.col.sched, V3Scheduler)
-        labels = self.mw.col.sched.describe_next_states(self._v3.states)
+        # Guide Me button
+        buf += """
+        <td align=center>%s</td>
+        """ % self._guideButton()
 
-        def but(i: int, label: str) -> str:
-            if i == default:
-                extra = """id="defease" """
-            else:
-                extra = ""
-            due = self._buttonTime(i, v3_labels=labels)
-            key = (
-                tr.actions_shortcut_key(val=aqt.mw.pm.get_answer_key(i))
-                if aqt.mw.pm.get_answer_key(i)
-                else ""
-            )
-            return """
-<td align=center><button %s title="%s" data-ease="%s" onclick='pycmd("ease%d");'>\
-%s%s</button></td>""" % (
-                extra,
-                key,
-                i,
-                i,
+        # Answer buttons
+        for ease, label in enumerate(self._answerButtonList(), 1):
+            buf += """
+            <td align=center>%s</td>
+            """ % self._answerButton(
                 label,
-                due,
+                ease,
+                f"ease{ease}",
+                ease == default,
             )
 
-        buf = "<center><table cellpadding=0 cellspacing=0><tr>"
-        for ease, label in self._answerButtonList():
-            buf += but(ease, label)
-        buf += "</tr></table>"
-        return buf
+        return """
+        <center><table cellpading=0 cellspacing=0><tr>%s</tr></table></center>
+        """ % buf
+
+    def _guideButton(self) -> str:
+        """Create the Guide Me button HTML."""
+        return """
+        <button title="Get a hint"
+            onclick='pycmd("guide");'
+            class='guide-btn'
+            style='
+                background: #2196F3;
+                color: white;
+                font-weight: bold;
+                border: none;
+                padding: 6px 12px;
+                border-radius: 3px;
+                margin: 0 3px;
+            '>
+            Guide Me 💡
+        </button>"""
 
     def _buttonTime(self, i: int, v3_labels: Sequence[str]) -> str:
         if self.mw.col.conf["estTimes"]:

@@ -1,0 +1,2 @@
+[console_scripts]
+ankidory = ankidory.main:main
