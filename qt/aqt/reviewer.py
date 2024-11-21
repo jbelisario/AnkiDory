@@ -380,7 +380,6 @@ class Reviewer:
             sounds = c.question_av_tags()
             gui_hooks.reviewer_will_play_question_sounds(c, sounds)
         else:
-            self.web.setPlaybackRequiresGesture(True)
             sounds = []
             gui_hooks.reviewer_will_play_question_sounds(c, sounds)
         gui_hooks.av_player_will_play_tags(sounds, self.state, self)
@@ -844,29 +843,70 @@ timerStopped = false;
         self.bottom.web.eval("showQuestion(%s,%d);" % (json.dumps(middle), maxTime))
 
     def _showEaseButtons(self) -> None:
-        if not self._states_mutated:
+        if not self._states_mutated or not self.card:
             self.mw.progress.single_shot(50, self._showEaseButtons)
             return
+
         middle = self._answerButtons()
+        if not middle:
+            return
+
         conf = self.mw.col.decks.config_dict_for_deck_id(self.card.current_deck_id())
         self.bottom.web.eval(
-            f"showAnswer({json.dumps(middle)}, {json.dumps(conf['stopTimerOnAnswer'])});"
+            f"showAnswer({json.dumps(middle)}, {json.dumps(conf.get('stopTimerOnAnswer', False))});"
         )
 
-    def _remaining(self) -> str:
-        if not self.mw.col.conf["dueCounts"]:
+    def _answerButtons(self) -> str:
+        if not self.card:
             return ""
 
-        counts: list[int | str]
-        idx, counts_ = self._v3.counts()
-        counts = cast(list[Union[int, str]], counts_)
-        counts[idx] = f"<u>{counts[idx]}</u>"
+        default = self._defaultEase()
 
-        return f"""
-<span class=new-count>{counts[0]}</span> +
-<span class=learn-count>{counts[1]}</span> +
-<span class=review-count>{counts[2]}</span>
-"""
+        # Get button labels and counts
+        button_list = self._answerButtonList()
+
+        # Guide Me button
+        guide_button = """
+        <td align=center><button
+            title="Get a hint"
+            onclick='pycmd("guide");'
+            class="guide-btn"
+            style="
+                background: #2196F3;
+                color: white;
+                font-weight: bold;
+                border: none;
+                padding: 6px 12px;
+                border-radius: 3px;
+                margin: 0 3px;
+                min-width: 100px;
+            ">
+            Guide Me 💡
+        </button></td>
+        """
+
+        # Answer buttons
+        def but(i: int, label: str) -> str:
+            extra = 'id="defease" ' if i == default else ""
+            key = tr.actions_shortcut_key(val=str(i))
+            return f"""
+            <td align=center><button {extra}
+                title="{key}"
+                data-ease="{i}"
+                onclick='pycmd("ease{i}");'
+                class="ease{i} {'def' if i == default else ''}"
+                style="min-width: 80px; margin: 0 3px;">
+                {label}
+            </button></td>"""
+
+        # Build button row
+        buf = "<center><table cellpadding=0 cellspacing=0><tr>"
+        buf += guide_button
+        for ease, label in button_list:
+            buf += but(ease, label)
+        buf += "</tr></table></center>"
+
+        return buf
 
     def _defaultEase(self) -> Literal[2, 3]:
         return 3
@@ -896,57 +936,20 @@ timerStopped = false;
         )
         return buttons_tuple
 
-    def _answerButtons(self) -> str:
-        if not self.card:
+    def _remaining(self) -> str:
+        if not self.mw.col.conf["dueCounts"]:
             return ""
 
-        buf = ""
-        default = self._defaultEase()
+        counts: list[int | str]
+        idx, counts_ = self._v3.counts()
+        counts = cast(list[Union[int, str]], counts_)
+        counts[idx] = f"<u>{counts[idx]}</u>"
 
-        # Guide Me button
-        buf += """
-        <td align=center>%s</td>
-        """ % self._guideButton()
-
-        # Answer buttons
-        for ease, label in enumerate(self._answerButtonList(), 1):
-            buf += """
-            <td align=center>%s</td>
-            """ % self._answerButton(
-                label,
-                ease,
-                f"ease{ease}",
-                ease == default,
-            )
-
-        return """
-        <center><table cellpading=0 cellspacing=0><tr>%s</tr></table></center>
-        """ % buf
-
-    def _guideButton(self) -> str:
-        """Create the Guide Me button HTML."""
-        return """
-        <button title="Get a hint"
-            onclick='pycmd("guide");'
-            class='guide-btn'
-            style='
-                background: #2196F3;
-                color: white;
-                font-weight: bold;
-                border: none;
-                padding: 6px 12px;
-                border-radius: 3px;
-                margin: 0 3px;
-            '>
-            Guide Me 💡
-        </button>"""
-
-    def _buttonTime(self, i: int, v3_labels: Sequence[str]) -> str:
-        if self.mw.col.conf["estTimes"]:
-            txt = v3_labels[i - 1]
-            return f"""<span class="nobold">{txt}</span>"""
-        else:
-            return ""
+        return f"""
+<span class=new-count>{counts[0]}</span> +
+<span class=learn-count>{counts[1]}</span> +
+<span class=review-count>{counts[2]}</span>
+"""
 
     # Leeches
     ##########################################################################
