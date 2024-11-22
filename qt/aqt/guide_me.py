@@ -51,7 +51,7 @@ class GuideMe:
             print(f"Card Answer: {answer}")
             
             # Generate new hint using AI
-            hint = self.hint_generator.generate_hint(card)
+            hint = self.hint_generator.generate_hint(question, answer)
             print(f"Generated hint: {hint}")
             
             if not hint:
