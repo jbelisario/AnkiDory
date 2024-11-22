@@ -15,7 +15,8 @@ Pre-built Python packages are available on PyPI. They are useful if you wish to:
 - Get code completion when developing add-ons
 - Make command line scripts that modify .anki2 files via Anki's Python libraries
 
-You will need the 64 bit version of Python 3.9 or later installed. 3.9 is
+You will need the 64 bit version of Python 3.9# Add to init_reviewer
+print("Reviewer initializing...") or later installed. 3.9 is
 recommended, as Anki has only received minimal testing on 3.10+ so far, and some
 dependencies have not been fully updated yet. You can install Python from python.org
 or from your distro.

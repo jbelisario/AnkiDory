@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from typing import Optional, List
 from aqt import mw
 from aqt.qt import *
@@ -74,71 +75,55 @@ class GuideMe:
             print(error_msg)
             return f"Error generating hint: {str(e)}"
 
-    def show_hint(self, card):
-        """Show a hint for the current card."""
-        if not card:
-            tooltip("No card selected")
+    def show_hint(self, hint_text: str):
+        """Show the hint directly in the reviewer."""
+        reviewer = self.mw.reviewer
+        if not reviewer:
             return
 
+        # Create HTML for the hint with the same styling as the question but with white text
+        hint_html = f"""
+        <div style='font-family: verdana; font-size: 20px; text-align: center; color: white; margin-top: 10px;'>
+            {hint_text}
+        </div>
+        """
+        
+        # Update the hint text and ensure it's only visible in question state
+        reviewer.web.eval(f"""
+            (function() {{
+                let hintDiv = document.getElementById('hint-text');
+                if (hintDiv) {{
+                    hintDiv.innerHTML = {json.dumps(hint_html)};
+                    hintDiv.style.display = 'block';
+                }}
+            }})();
+        """)
+
+    def setup_web_content(self):
+        """Add custom JavaScript to handle hint and button visibility."""
+        pass  # JavaScript is now loaded via web_content.js
+
+    def on_guide_me(self):
+        """Handle Guide Me button click."""
+        if not self.mw.reviewer or not self.mw.reviewer.card:
+            return
+            
         try:
             print("\n=== Starting hint generation process ===")
-            
-            # Create and show a loading dialog
-            loading_dialog = QDialog(self.mw)
-            loading_dialog.setWindowTitle("Guide Me")
-            loading_dialog.setWindowModality(Qt.WindowModality.ApplicationModal)
-            
-            # Create layout
-            layout = QVBoxLayout()
-            layout.setContentsMargins(20, 20, 20, 20)
-            
-            # Add loading message
-            loading_label = QLabel("Generating your hint...\nThis may take a few seconds.")
-            loading_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-            loading_label.setStyleSheet("""
-                QLabel {
-                    color: #2196F3;
-                    font-size: 14px;
-                    font-weight: bold;
-                    padding: 10px;
-                }
-            """)
-            layout.addWidget(loading_label)
-            
-            # Set dialog properties
-            loading_dialog.setLayout(layout)
-            loading_dialog.setFixedSize(300, 100)
-            loading_dialog.setStyleSheet("""
-                QDialog {
-                    background-color: #FFFFFF;
-                    border: 1px solid #CCCCCC;
-                    border-radius: 5px;
-                }
-            """)
-            
-            # Show loading dialog
-            loading_dialog.show()
-            QApplication.processEvents()
-            
-            # Generate hint
-            hint = self._generate_hint(card)
-            
-            # Close loading dialog
-            loading_dialog.close()
-            
+            hint = self._generate_hint(self.mw.reviewer.card)
             if not hint:
                 print("Error: No hint was generated")
                 hint = "Error: No hint could be generated. Please try again."
             
-            print(f"Showing hint dialog with hint: {hint}")
-            self._show_hint_dialog(hint, 1)
+            print(f"Generated hint: {hint}")
+            self.show_hint(hint)
             
         except Exception as e:
             import traceback
             error_msg = f"Error showing hint: {str(e)}\n{traceback.format_exc()}"
             print(error_msg)
             showInfo(error_msg, title="Error")
-        
+
     def _show_hint_dialog(self, hint: str, hint_number: int) -> None:
         """Display the hint in a dialog box."""
         dialog = QDialog(self.mw)
