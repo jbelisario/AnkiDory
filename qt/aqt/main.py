@@ -249,7 +249,6 @@ class AnkiQt(QMainWindow):
 
     def finish_ui_setup(self) -> None:
         "Actions that are deferred until after add-on loading."
-        self.toolbar.draw()
         # add-ons are only available here after setupAddons
         gui_hooks.reviewer_did_init(self.reviewer)
 
@@ -707,13 +706,7 @@ class AnkiQt(QMainWindow):
 
         try:
             self.maybeOptimize()
-            if not dev_mode:
-                corrupt = self.col.db.scalar("pragma quick_check") != "ok"
-        except Exception:
-            corrupt = True
-
-        try:
-            if not corrupt and not dev_mode and not self.restoring_backup:
+            if not dev_mode and not self.restoring_backup:
                 try:
                     # default 5 minute throttle
                     self.col.create_backup(
@@ -961,6 +954,9 @@ title="{}" {}>{}</button>""".format(
         if is_win:
             for webview in self.web, self.bottomWeb:
                 webview.force_load_hack()
+
+        # Initialize toolbar components
+        self.toolbar.draw()  # Ensure toolbar is drawn initially
 
         gui_hooks.card_review_webview_did_init(self.web, AnkiWebViewKind.MAIN)
 
@@ -1821,20 +1817,3 @@ title="{}" {}>{}</button>""".format(
 
     def serverURL(self) -> str:
         return "http://127.0.0.1:%d/" % self.mediaServer.getPort()
-
-
-# legacy
-class ResetReason(enum.Enum):
-    Unknown = "unknown"
-    AddCardsAddNote = "addCardsAddNote"
-    EditCurrentInit = "editCurrentInit"
-    EditorBridgeCmd = "editorBridgeCmd"
-    BrowserSetDeck = "browserSetDeck"
-    BrowserAddTags = "browserAddTags"
-    BrowserRemoveTags = "browserRemoveTags"
-    BrowserSuspend = "browserSuspend"
-    BrowserReposition = "browserReposition"
-    BrowserReschedule = "browserReschedule"
-    BrowserFindReplace = "browserFindReplace"
-    BrowserTagDupes = "browserTagDupes"
-    BrowserDeleteDeck = "browserDeleteDeck"

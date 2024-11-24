@@ -3,6 +3,7 @@ README.md
 pyproject.toml
 setup.py
 src/ankidory/__init__.py
+src/ankidory/config.py
 src/ankidory/guide_me.py
 src/ankidory/main.py
 src/ankidory.egg-info/PKG-INFO
@@ -11,3 +12,7 @@ src/ankidory.egg-info/dependency_links.txt
 src/ankidory.egg-info/entry_points.txt
 src/ankidory.egg-info/requires.txt
 src/ankidory.egg-info/top_level.txt
+src/ankidory/aqt/__init__.py
+src/ankidory/aqt/toolbar.py
+src/ankidory/gui/__init__.py
+src/ankidory/gui/ai_settings_dialog.py

@@ -117,101 +117,8 @@ import aqt.forms
 
 from aqt import addcards, addons, browser, editcurrent, filtered_deck  # isort:skip
 from aqt import stats, about, preferences, mediasync  # isort:skip
-
-
-class DialogManager:
-    _dialogs: dict[str, list] = {
-        "AddCards": [addcards.AddCards, None],
-        "AddonsDialog": [addons.AddonsDialog, None],
-        "Browser": [browser.Browser, None],
-        "EditCurrent": [editcurrent.EditCurrent, None],
-        "FilteredDeckConfigDialog": [filtered_deck.FilteredDeckConfigDialog, None],
-        "DeckStats": [stats.DeckStats, None],
-        "NewDeckStats": [stats.NewDeckStats, None],
-        "About": [about.show, None],
-        "Preferences": [preferences.Preferences, None],
-        "sync_log": [mediasync.MediaSyncDialog, None],
-    }
-
-    def open(self, name: str, *args: Any, **kwargs: Any) -> Any:
-        (creator, instance) = self._dialogs[name]
-        if instance:
-            if instance.windowState() & Qt.WindowState.WindowMinimized:
-                instance.setWindowState(
-                    instance.windowState() & ~Qt.WindowState.WindowMinimized
-                )
-            instance.activateWindow()
-            instance.raise_()
-            if hasattr(instance, "reopen"):
-                instance.reopen(*args, **kwargs)
-        else:
-            instance = creator(*args, **kwargs)
-            self._dialogs[name][1] = instance
-        gui_hooks.dialog_manager_did_open_dialog(self, name, instance)
-        return instance
-
-    def markClosed(self, name: str) -> None:
-        self._dialogs[name] = [self._dialogs[name][0], None]
-
-    def allClosed(self) -> bool:
-        return not any(x[1] for x in self._dialogs.values())
-
-    def closeAll(self, onsuccess: Callable[[], None]) -> bool | None:
-        # can we close immediately?
-        if self.allClosed():
-            onsuccess()
-            return None
-
-        # ask all windows to close and await a reply
-        for name, (creator, instance) in self._dialogs.items():
-            if not instance:
-                continue
-
-            def callback() -> None:
-                if self.allClosed():
-                    onsuccess()
-                else:
-                    # still waiting for others to close
-                    pass
-
-            if getattr(instance, "silentlyClose", False):
-                instance.close()
-                callback()
-            else:
-                instance.closeWithCallback(callback)
-
-        return True
-
-    def register_dialog(
-        self, name: str, creator: Callable | type, instance: Any | None = None
-    ) -> None:
-        """Allows add-ons to register a custom dialog to be managed by Anki's dialog
-        manager, which ensures that only one copy of the window is open at once,
-        and that the dialog cleans up asynchronously when the collection closes
-
-        Please note that dialogs added in this manner need to define a close behavior
-        by either:
-
-            - setting `dialog.silentlyClose = True` to have it close immediately
-            - define a `dialog.closeWithCallback()` method that is called when closed
-              by the dialog manager
-
-        TODO?: Implement more restrictive type check to ensure these requirements
-        are met
-
-        Arguments:
-            name {str} -- Name/identifier of the dialog in question
-            creator {Union[Callable, type]} -- A class or function to create new
-                                               dialog instances with
-
-        Keyword Arguments:
-            instance {Optional[Any]} -- An optional existing instance of the dialog
-                                        (default: {None})
-        """
-        self._dialogs[name] = [creator, instance]
-
-
-dialogs = DialogManager()
+from aqt import toolbar
+from aqt import ai_settings  # Add AI settings module
 
 # Language handling
 ##########################################################################
@@ -790,3 +697,116 @@ def _run(argv: list[str] | None = None, exec: bool = True) -> AnkiApp | None:
         write_profile_results()
 
     return None
+
+
+dialogs = DialogManager()
+
+# Register AI Settings dialog
+dialogs.register_dialog("AISettings", ai_settings.AISettingsDialog)
+
+# Dialog manager
+##########################################################################
+# ensures only one copy of the window is open at once, and provides
+# a way for dialogs to clean up asynchronously when collection closes
+
+# to integrate a new window:
+# - add it to _dialogs
+# - define close behaviour, by either:
+# -- setting silentlyClose=True to have it close immediately
+# -- define a closeWithCallback() method
+# - have the window opened via aqt.dialogs.open(<name>, self)
+# - have a method reopen(*args), called if the user ask to open the window a second time. Arguments passed are the same than for original opening.
+
+# - make preferences modal? cmd+q does wrong thing
+
+
+class DialogManager:
+    _dialogs: dict[str, list] = {
+        "AddCards": [addcards.AddCards, None],
+        "AddonsDialog": [addons.AddonsDialog, None],
+        "Browser": [browser.Browser, None],
+        "EditCurrent": [editcurrent.EditCurrent, None],
+        "FilteredDeckConfigDialog": [filtered_deck.FilteredDeckConfigDialog, None],
+        "DeckStats": [stats.DeckStats, None],
+        "NewDeckStats": [stats.NewDeckStats, None],
+        "About": [about.show, None],
+        "Preferences": [preferences.Preferences, None],
+        "sync_log": [mediasync.MediaSyncDialog, None],
+    }
+
+    def open(self, name: str, *args: Any, **kwargs: Any) -> Any:
+        (creator, instance) = self._dialogs[name]
+        if instance:
+            if instance.windowState() & Qt.WindowState.WindowMinimized:
+                instance.setWindowState(
+                    instance.windowState() & ~Qt.WindowState.WindowMinimized
+                )
+            instance.activateWindow()
+            instance.raise_()
+            if hasattr(instance, "reopen"):
+                instance.reopen(*args, **kwargs)
+        else:
+            instance = creator(*args, **kwargs)
+            self._dialogs[name][1] = instance
+        gui_hooks.dialog_manager_did_open_dialog(self, name, instance)
+        return instance
+
+    def markClosed(self, name: str) -> None:
+        self._dialogs[name] = [self._dialogs[name][0], None]
+
+    def allClosed(self) -> bool:
+        return not any(x[1] for x in self._dialogs.values())
+
+    def closeAll(self, onsuccess: Callable[[], None]) -> bool | None:
+        # can we close immediately?
+        if self.allClosed():
+            onsuccess()
+            return None
+
+        # ask all windows to close and await a reply
+        for name, (creator, instance) in self._dialogs.items():
+            if not instance:
+                continue
+
+            def callback() -> None:
+                if self.allClosed():
+                    onsuccess()
+                else:
+                    # still waiting for others to close
+                    pass
+
+            if getattr(instance, "silentlyClose", False):
+                instance.close()
+                callback()
+            else:
+                instance.closeWithCallback(callback)
+
+        return True
+
+    def register_dialog(
+        self, name: str, creator: Callable | type, instance: Any | None = None
+    ) -> None:
+        """Allows add-ons to register a custom dialog to be managed by Anki's dialog
+        manager, which ensures that only one copy of the window is open at once,
+        and that the dialog cleans up asynchronously when the collection closes
+
+        Please note that dialogs added in this manner need to define a close behavior
+        by either:
+
+            - setting `dialog.silentlyClose = True` to have it close immediately
+            - define a `dialog.closeWithCallback()` method that is called when closed
+              by the dialog manager
+
+        TODO?: Implement more restrictive type check to ensure these requirements
+        are met
+
+        Arguments:
+            name {str} -- Name/identifier of the dialog in question
+            creator {Union[Callable, type]} -- A class or function to create new
+                                               dialog instances with
+
+        Keyword Arguments:
+            instance {Optional[Any]} -- An optional existing instance of the dialog
+                                        (default: {None})
+        """
+        self._dialogs[name] = [creator, instance]
