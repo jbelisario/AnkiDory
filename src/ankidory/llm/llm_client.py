@@ -46,17 +46,32 @@ class LLMClient:
         """Generate flashcards using LLM."""
         try:
             # Get card generation prompt from config
-            prompt = self.config.get_card_prompt().format(
-                num_cards=num_cards,
-                topic=topic,
-                difficulty=difficulty
-            )
+            prompt = f"""Generate {num_cards} Anki flashcards about {topic}.
+Difficulty level: {difficulty}
+
+IMPORTANT: Respond with ONLY a JSON array of card objects.
+Each card object must have these exact fields:
+- "question": The question text
+- "answer": The answer text
+- "hint": A helpful hint (optional)
+
+Example format:
+[
+  {{
+    "question": "What is X?",
+    "answer": "X is Y",
+    "hint": "Think about Z"
+  }}
+]
+
+Do not include any other text, explanations, or formatting in your response.
+Just the raw JSON array."""
             
             # Generate cards using LLM
             completion = self.client.chat.completions.create(
                 model=model,
                 messages=[
-                    {"role": "system", "content": SYSTEM_PROMPT},
+                    {"role": "system", "content": "You are a helpful AI that generates Anki flashcards. You ONLY respond with valid JSON arrays containing card objects."},
                     {"role": "user", "content": prompt}
                 ],
                 temperature=0.7,
@@ -66,10 +81,26 @@ class LLMClient:
             )
             
             # Parse response into Card objects
-            response_text = completion.choices[0].message.content
+            response_text = completion.choices[0].message.content.strip()
             logger.debug(f"LLM response: {response_text}")
             
             try:
+                # Remove any leading/trailing whitespace or non-JSON characters
+                response_text = response_text.strip()
+                if not response_text.startswith('['):
+                    # Try to find the start of the JSON array
+                    start_idx = response_text.find('[')
+                    if start_idx == -1:
+                        raise ValueError("No JSON array found in response")
+                    response_text = response_text[start_idx:]
+                
+                if not response_text.endswith(']'):
+                    # Try to find the end of the JSON array
+                    end_idx = response_text.rfind(']')
+                    if end_idx == -1:
+                        raise ValueError("No complete JSON array found in response")
+                    response_text = response_text[:end_idx+1]
+                
                 cards_data = json.loads(response_text)
             except json.JSONDecodeError as e:
                 logger.error(f"Failed to parse LLM response as JSON: {e}")

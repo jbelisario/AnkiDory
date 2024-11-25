@@ -42,15 +42,16 @@ Guidelines:
 8. Ensure factual accuracy and current information
 
 IMPORTANT: You must respond with a valid JSON array containing card objects. Each card object must have "question", "answer", and "hint" fields.
-Do not include any other text in your response.
+Do not include any other text or formatting in your response.
+Ensure the response is a complete and valid JSON array.
 
 Example response format:
 [
-    {{
-        "question": "What is X?",
-        "answer": "X is Y",
-        "hint": "Think about Z"
-    }}
+  {
+    "question": "What is X?",
+    "answer": "X is Y",
+    "hint": "Think about Z"
+  }
 ]"""
 
     def __init__(self):
@@ -129,6 +130,10 @@ Example response format:
     def get_default_card_prompt(self) -> str:
         """Get the default card generation prompt"""
         return self.DEFAULT_CARD_PROMPT
+
+    def get_prompt(self) -> str:
+        """Get the current prompt (alias for get_hint_prompt for compatibility)"""
+        return self.get_hint_prompt()
 
     def save(self):
         """Save configuration to file"""
