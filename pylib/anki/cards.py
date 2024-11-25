@@ -54,19 +54,21 @@ class Card(DeprecatedNamesMixin):
 
     def __init__(
         self,
-        col: anki.collection.Collection,
+        col: anki.collection.Collection | None = None,
         id: CardId | None = None,
         backend_card: BackendCard | None = None,
     ) -> None:
-        self.col = col.weakref()
+        """Initialize a card with the given collection and optional ID."""
+        self.col = col.weakref() if col else None
         self.timer_started: float | None = None
         self._render_output: anki.template.TemplateRenderOutput | None = None
+        self.id = id
         self._hint_history: List[str] = []
         self._hints_used: int = 0
         if id:
             # existing card
-            self.id = id
-            self.load()
+            self._load_from_backend_card(self.col._backend.get_card(self.id))
+            self._load_hints()
         elif backend_card:
             self._load_from_backend_card(backend_card)
         else:
@@ -77,6 +79,7 @@ class Card(DeprecatedNamesMixin):
         card = self.col._backend.get_card(self.id)
         assert card
         self._load_from_backend_card(card)
+        self._load_hints()
 
     def _load_from_backend_card(self, card: cards_pb2.Card) -> None:
         self._render_output = None
@@ -106,6 +109,23 @@ class Card(DeprecatedNamesMixin):
         self.desired_retention = (
             card.desired_retention if card.HasField("desired_retention") else None
         )
+
+    def _load_hints(self) -> None:
+        """Load hints from the database."""
+        if not self.col or not self.id:
+            return
+        
+        hints = self.col.db.list(
+            "SELECT hint FROM dory_hints WHERE cid = ? ORDER BY created ASC",
+            self.id
+        )
+        self._hint_history = hints or []
+        
+        stats = self.col.db.first(
+            "SELECT hints_used FROM dory_hint_stats WHERE cid = ?",
+            self.id
+        )
+        self._hints_used = stats[0] if stats else 0
 
     def _to_backend_card(self) -> cards_pb2.Card:
         # mtime & usn are set by backend
@@ -240,15 +260,24 @@ class Card(DeprecatedNamesMixin):
     def is_empty(self) -> bool:
         return False
 
-    def add_hint(self, hint: str) -> None:
-        """Add a hint to the card's hint history."""
-        self._hint_history.append(hint)
-        self._hints_used += 1
-        self.mod = int_time()
+    def get_hints(self) -> Optional[List[str]]:
+        """Get hints for this card."""
+        try:
+            hints = self.col.db.list("SELECT hint FROM dory_hints WHERE card_id = ? ORDER BY created_at", self.id)
+            return hints if hints else None
+        except Exception as e:
+            return None
 
-    def get_hints(self) -> List[str]:
-        """Get all hints previously shown for this card."""
-        return self._hint_history.copy()
+    def add_hint(self, hint: str) -> None:
+        """Add a hint for this card."""
+        try:
+            self.col.db.execute(
+                "INSERT INTO dory_hints (card_id, hint, created_at) VALUES (?, ?, ?)",
+                self.id, hint, int_time()
+            )
+            self.col.db.commit()
+        except Exception as e:
+            pass  # Silently fail if table doesn't exist yet
 
     def get_hints_used(self) -> int:
         """Get the number of hints used for this card."""

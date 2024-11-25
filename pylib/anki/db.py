@@ -130,3 +130,17 @@ class DB(DeprecatedNamesMixin):
 
     def cursor(self, factory: type[Cursor] = Cursor) -> Cursor:
         return self._db.cursor(factory)
+
+    def _init_dory_tables(self):
+        """Initialize tables for the Dory addon."""
+        self.executescript("""
+            CREATE TABLE IF NOT EXISTS dory_hints (
+                id INTEGER PRIMARY KEY,
+                card_id INTEGER NOT NULL,
+                hint TEXT NOT NULL,
+                created_at INTEGER NOT NULL,
+                FOREIGN KEY (card_id) REFERENCES cards (id)
+            );
+            
+            CREATE INDEX IF NOT EXISTS idx_dory_hints_card_id ON dory_hints (card_id);
+        """)

@@ -8,7 +8,8 @@ from PyQt6.QtCore import Qt
 from aqt.utils import showInfo, tooltip
 from anki.cards import Card
 from anki.utils import int_time
-from anki.llm import llm_manager
+from anki.llm import LLMManager
+llm_manager = LLMManager()
 from .db import save_hint, get_hints
 from .ai_hint import AIHintGenerator
 

@@ -6,7 +6,10 @@ from aqt.qt import *
 from aqt.utils import tooltip
 from anki.cards import Card
 from anki.utils import int_time
-from anki.llm import llm_manager
+from anki.llm import LLMManager
+
+# Get the global instance
+llm_manager = LLMManager()
 
 class GuideMe:
     """Manages the Guide Me feature functionality."""
@@ -25,20 +28,23 @@ class GuideMe:
         card_content = f"Question: {question}\nAnswer: {answer}"
         
         # Get previous hints
-        previous_hints = card.get_hints()
+        previous_hints = card.get_hints() or []  # Ensure we have a list even if None is returned
         
-        # Generate new hint
-        hint = llm_manager.generate_hint(card_content=card_content, previous_hints=previous_hints)
-        
-        if hint.startswith("Error"):
-            tooltip(hint)
-            return
+        try:
+            # Generate new hint
+            hint = llm_manager.generate_hint(card_content, previous_hints)
             
-        # Store the hint
-        card.add_hint(hint)
-        
-        # Show the hint in a dialog
-        self._show_hint_dialog(hint, len(previous_hints) + 1)
+            if hint.startswith("Error"):
+                tooltip(hint)
+                return
+                
+            # Store the hint
+            card.add_hint(hint)
+            
+            # Show the hint in a dialog
+            self._show_hint_dialog(hint, len(previous_hints) + 1)
+        except Exception as e:
+            tooltip(f"Error getting hints: {str(e)}")
         
     def _show_hint_dialog(self, hint: str, hint_number: int) -> None:
         """Display the hint in a dialog box."""

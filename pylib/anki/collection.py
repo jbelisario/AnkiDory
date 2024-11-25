@@ -158,6 +158,21 @@ class Collection(DeprecatedNamesMixin):
         self.conf = ConfigManager(self)
         self._load_scheduler()
         self._startReps = 0  # pylint: disable=invalid-name
+        self._init_dory_schema()
+
+    def _init_dory_schema(self):
+        """Initialize Dory's hint system tables."""
+        self.db.executescript("""
+            CREATE TABLE IF NOT EXISTS dory_hints (
+                id INTEGER PRIMARY KEY,
+                card_id INTEGER NOT NULL,
+                hint TEXT NOT NULL,
+                created_at INTEGER NOT NULL,
+                FOREIGN KEY (card_id) REFERENCES cards (id)
+            );
+            
+            CREATE INDEX IF NOT EXISTS idx_dory_hints_card_id ON dory_hints (card_id);
+        """)
 
     def name(self) -> Any:
         return os.path.splitext(os.path.basename(self.path))[0]

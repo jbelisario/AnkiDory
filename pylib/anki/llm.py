@@ -28,11 +28,13 @@ logger.addHandler(console_handler)
 
 class LLMProvider:
     """Base class for LLM providers."""
+    
     def __init__(self, config: configparser.ConfigParser):
         self._config = config
         
-    def generate_completion(self, messages: List[Dict], max_tokens: int, temperature: float) -> str:
-        raise NotImplementedError
+    def generate_completion(self, prompt: str, max_tokens: int = 150, temperature: float = 0.7) -> str:
+        """Generate completion using the provider's API."""
+        raise NotImplementedError("Subclasses must implement generate_completion")
 
 class OpenAIProvider(LLMProvider):
     """OpenAI LLM provider."""
@@ -52,7 +54,7 @@ class OpenAIProvider(LLMProvider):
         self.model = config.get('openai', 'model', fallback='gpt-3.5-turbo')
         logger.debug("OpenAI client initialized successfully")
         
-    def generate_completion(self, prompt: str, max_tokens: int = 150) -> str:
+    def generate_completion(self, prompt: str, max_tokens: int = 150, temperature: float = 0.7) -> str:
         """Generate completion using OpenAI API."""
         try:
             logger.debug("Calling OpenAI API...")
@@ -65,13 +67,16 @@ class OpenAIProvider(LLMProvider):
                 ],
                 model=self.model,
                 max_tokens=max_tokens,
-                temperature=0.7
+                temperature=temperature
             )
             
             elapsed = time.time() - start_time
             logger.debug(f"OpenAI API call completed in {elapsed:.2f} seconds")
             logger.debug(f"OpenAI Response type: {type(chat_completion)}")
             
+            if not chat_completion.choices:
+                raise ValueError("No completion choices returned from OpenAI")
+                
             completion_text = chat_completion.choices[0].message.content
             logger.debug(f"Received completion from OpenAI: {completion_text[:100]}...")
             return completion_text.strip()
@@ -98,7 +103,7 @@ class GroqProvider(LLMProvider):
         self.model = config.get('groq', 'model', fallback='mixtral-8x7b-32768')
         logger.debug("Groq client initialized successfully")
         
-    def generate_completion(self, prompt: str, max_tokens: int = 150) -> str:
+    def generate_completion(self, prompt: str, max_tokens: int = 150, temperature: float = 0.7) -> str:
         """Generate completion using Groq API."""
         try:
             logger.debug("Calling Groq API...")
@@ -111,7 +116,7 @@ class GroqProvider(LLMProvider):
                 ],
                 model=self.model,
                 max_tokens=max_tokens,
-                temperature=0.7
+                temperature=temperature
             )
             
             elapsed = time.time() - start_time
@@ -202,7 +207,7 @@ class LLMManager:
         else:
             raise ValueError(f"Unsupported provider: {provider_name}")
             
-    def generate_hint(self, card_content: str, previous_hints: List[str]) -> str:
+    def generate_hint(self, card_content: str, previous_hints: Optional[List[str]] = None) -> str:
         """Generate a hint using the configured LLM provider."""
         try:
             logger.debug(f"Generating hint using provider: {type(self._provider).__name__}")
@@ -218,13 +223,15 @@ class LLMManager:
                 prompt += f"\n\nPrevious Hints:\n" + "\n".join(f"{i+1}. {hint}" for i, hint in enumerate(previous_hints))
             
             logger.debug(f"Using prompt template: {custom_prompt[:100]}...")
-            return self._provider.generate_completion(
-                prompt=prompt,
-                max_tokens=self.max_tokens
-            )
+            max_tokens = int(self._config.get('common', 'max_tokens', fallback=150))
+            temperature = float(self._config.get('common', 'temperature', fallback=0.7))
+            
+            # Generate the hint
+            hint = self._provider.generate_completion(prompt, max_tokens=max_tokens, temperature=temperature)
+            return hint.strip()
         except Exception as e:
             logger.error(f"Error generating hint: {str(e)}")
-            return f"Error generating hint: {str(e)}"
+            return f"Error: {str(e)}"
 
 # Global instance
 llm_manager = LLMManager()
