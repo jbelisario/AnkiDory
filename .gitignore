@@ -19,3 +19,7 @@ yarn-error.log
 ts/.svelte-kit
 # Dory specific
 pylib/anki/config.ini
+# Build artifacts
+/dist/
+/build/
+*.egg-info/

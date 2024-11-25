@@ -1,25 +1,52 @@
 from __future__ import annotations
 
+import logging
 from typing import Optional, List
 from aqt import AnkiQt
 from aqt.qt import *
 from aqt.utils import tooltip
 from anki.cards import Card
 from anki.utils import int_time
-from anki.llm import LLMManager
+
+try:
+    from anki.llm import LLMManager
+    HAS_ANKI_LLM = True
+except ImportError:
+    HAS_ANKI_LLM = False
+
+from .llm.llm_client import LLMClient
+
+logger = logging.getLogger(__name__)
 
 # Get the global instance
-llm_manager = LLMManager()
+if HAS_ANKI_LLM:
+    try:
+        llm_manager = LLMManager()
+    except Exception as e:
+        logger.warning(f"Failed to initialize Anki LLM manager: {e}")
+        llm_manager = None
+else:
+    llm_manager = None
 
 class GuideMe:
     """Manages the Guide Me feature functionality."""
     
     def __init__(self, mw: AnkiQt):
         self.mw = mw
+        if not llm_manager:
+            try:
+                self.llm_client = LLMClient()
+            except Exception as e:
+                logger.error(f"Failed to initialize LLM client: {e}")
+                self.llm_client = None
         
     def show_hint(self, card: Card) -> None:
         """Show a hint for the current card."""
         if not card:
+            return
+            
+        if not llm_manager and not self.llm_client:
+            tooltip("AI features are not available. Please check your configuration.")
             return
             
         # Get card content
@@ -32,7 +59,10 @@ class GuideMe:
         
         try:
             # Generate new hint
-            hint = llm_manager.generate_hint(card_content, previous_hints)
+            if llm_manager:
+                hint = llm_manager.generate_hint(card_content, previous_hints)
+            else:
+                hint = self.llm_client.generate_hint(card_content, previous_hints)
             
             if hint.startswith("Error"):
                 tooltip(hint)

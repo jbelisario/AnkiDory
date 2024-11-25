@@ -4,6 +4,11 @@ import json
 import logging
 import os
 from typing import List, Optional
+try:
+    from anki.llm import LLMManager
+    HAS_ANKI_LLM = True
+except ImportError:
+    HAS_ANKI_LLM = False
 import groq
 from ..models import Card
 from ..config import Config
@@ -34,7 +39,10 @@ class LLMClient:
             self.api_key = self.config.get("groq", "api_key")
             if not self.api_key:
                 raise ValueError("Groq API key not found in configuration")
+        
+        # Initialize Groq client
         self.client = groq.Client(api_key=self.api_key)
+        logger.info("Using Groq client")
         
     def generate_cards(
         self,
@@ -67,11 +75,11 @@ Example format:
 Do not include any other text, explanations, or formatting in your response.
 Just the raw JSON array."""
             
-            # Generate cards using LLM
+            # Generate cards using Groq
             completion = self.client.chat.completions.create(
                 model=model,
                 messages=[
-                    {"role": "system", "content": "You are a helpful AI that generates Anki flashcards. You ONLY respond with valid JSON arrays containing card objects."},
+                    {"role": "system", "content": SYSTEM_PROMPT},
                     {"role": "user", "content": prompt}
                 ],
                 temperature=0.7,

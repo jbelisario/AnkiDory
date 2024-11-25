@@ -49,19 +49,27 @@ def init_db():
 
 def delayed_init():
     """Initialize the addon after profile loads."""
-    logger.info("=== LOADING DEVELOPMENT VERSION OF ANKIDORY ===")
+    logger.debug("Running delayed initialization...")
     try:
         # Initialize database
         if not init_db():
             logger.error("Failed to initialize database")
             return
-            
+
         # Initialize deck browser modifications
         deck_browser.init_deck_browser()
-        logger.debug("Deck browser initialized")
         
+        # Force refresh the deck browser to show our modifications
+        if mw and mw.deckBrowser:
+            mw.deckBrowser.show()
+            
+        logger.debug("Delayed initialization completed successfully")
     except Exception as e:
-        logger.error(f"Addon initialization failed: {e}")
+        logger.error(f"Delayed initialization failed: {e}")
 
 # Register initialization hook
 gui_hooks.profile_did_open.append(delayed_init)
+
+# Force initialization on reload
+if mw and mw.col:
+    delayed_init()
