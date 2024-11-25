@@ -28,7 +28,7 @@ class GuideMe:
         previous_hints = card.get_hints()
         
         # Generate new hint
-        hint = llm_manager.generate_hint(card_content, previous_hints)
+        hint = llm_manager.generate_hint(card_content=card_content, previous_hints=previous_hints)
         
         if hint.startswith("Error"):
             tooltip(hint)

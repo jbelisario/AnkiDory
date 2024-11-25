@@ -202,17 +202,29 @@ class LLMManager:
         else:
             raise ValueError(f"Unsupported provider: {provider_name}")
             
-    def generate_hint(self, prompt: str) -> str:
+    def generate_hint(self, card_content: str, previous_hints: List[str]) -> str:
         """Generate a hint using the configured LLM provider."""
         try:
             logger.debug(f"Generating hint using provider: {type(self._provider).__name__}")
+            
+            # Load the custom prompt from ankidory config
+            from ankidory.config import Config
+            config = Config()
+            custom_prompt = config.get_prompt()
+            
+            # Format the complete prompt
+            prompt = f"{custom_prompt}\n\nCard Content:\n{card_content}"
+            if previous_hints:
+                prompt += f"\n\nPrevious Hints:\n" + "\n".join(f"{i+1}. {hint}" for i, hint in enumerate(previous_hints))
+            
+            logger.debug(f"Using prompt template: {custom_prompt[:100]}...")
             return self._provider.generate_completion(
                 prompt=prompt,
                 max_tokens=self.max_tokens
             )
         except Exception as e:
             logger.error(f"Error generating hint: {str(e)}")
-            raise
+            return f"Error generating hint: {str(e)}"
 
 # Global instance
 llm_manager = LLMManager()
