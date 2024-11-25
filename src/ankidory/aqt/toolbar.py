@@ -8,6 +8,7 @@ import enum
 import re
 import sys
 import logging
+import os
 from collections.abc import Callable
 from typing import Any, cast
 
@@ -20,6 +21,7 @@ from aqt.theme import theme_manager
 from aqt.utils import tooltip, tr
 from aqt.webview import AnkiWebView, AnkiWebViewKind
 from aqt.ai_settings.settings import AISettings, AISettingsDialog
+from ..gui.generate_deck_dialog import GenerateDeckDialog
 
 # Set up logging
 logging.basicConfig(level=logging.DEBUG)
@@ -288,8 +290,9 @@ class Toolbar:
             "add": self._addLinkHandler,
             "browse": self._browseLinkHandler,
             "stats": self._statsLinkHandler,
-            "sync": self._syncLinkHandler,
+            "generate_deck": self._generateDeckLinkHandler,
             "ai_settings": self._aiSettingsLinkHandler,
+            "sync": self._syncLinkHandler,
         }
         self.link_handlers.update(handlers)
         logger.debug(f"Registered handlers: {list(self.link_handlers.keys())}")
@@ -376,6 +379,7 @@ class Toolbar:
             ("add", tr.actions_add(), self._addLinkHandler, "A"),
             ("browse", tr.qt_misc_browse(), self._browseLinkHandler, "B"),
             ("stats", tr.qt_misc_stats(), self._statsLinkHandler, "T"),
+            ("generate_deck", "Generate Deck with AI", self._generateDeckLinkHandler, "G"),
             ("ai_settings", "AI Settings", self._aiSettingsLinkHandler, "I"),
             ("sync", self._syncLabel(), self._syncLinkHandler, "Y"),
         ]:
@@ -450,6 +454,15 @@ class Toolbar:
 
     def _syncLinkHandler(self) -> None:
         self.mw.on_sync_button_clicked()
+
+    def _generateDeckLinkHandler(self) -> None:
+        """Open Generate Deck dialog when toolbar button is clicked."""
+        logger.debug("\n=== Generate Deck Handler Called ===")
+        logger.debug("Creating dialog...")
+        dialog = GenerateDeckDialog(self.mw)
+        logger.debug("Showing dialog...")
+        dialog.show()
+        logger.debug("Dialog shown")
 
     def _aiSettingsLinkHandler(self) -> None:
         """Open AI Settings dialog when toolbar button is clicked."""

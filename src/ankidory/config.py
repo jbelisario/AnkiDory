@@ -1,9 +1,11 @@
+"""Configuration management for AnkiDory."""
+
 import os
 import configparser
 from typing import Optional
 
 class Config:
-    DEFAULT_PROMPT = """As a world-class instructor, create a helpful hint for a student studying with flashcards.
+    DEFAULT_HINT_PROMPT = """As a world-class instructor, create a helpful hint for a student studying with flashcards.
 The student is looking at this question: "{question}"
 
 Answer: "{answer}"
@@ -24,6 +26,33 @@ Additional guidelines:
 - Focus on helping students discover the answer through understanding
 - Do NOT include any introductory text like "Here's a hint" - just output the hint directly"""
 
+    DEFAULT_CARD_PROMPT = """You are an expert educator and flashcard creator. Your task is to create high-quality Anki flashcards for the given topic.
+
+Create {num_cards} Anki flashcards about {topic}.
+Difficulty level: {difficulty}
+
+Guidelines:
+1. Each card should focus on a single, clear concept
+2. Questions should be specific and unambiguous
+3. Answers should be concise but complete
+4. Include helpful hints that guide thinking without giving away the answer
+5. Adjust complexity based on the specified difficulty level
+6. Use examples and analogies where appropriate
+7. For technical topics, include practical applications
+8. Ensure factual accuracy and current information
+
+IMPORTANT: You must respond with a valid JSON array containing card objects. Each card object must have "question", "answer", and "hint" fields.
+Do not include any other text in your response.
+
+Example response format:
+[
+    {{
+        "question": "What is X?",
+        "answer": "X is Y",
+        "hint": "Think about Z"
+    }}
+]"""
+
     def __init__(self):
         self.config = configparser.ConfigParser()
         self.config_path = os.path.join(os.path.dirname(__file__), "config.ini")
@@ -39,11 +68,27 @@ Additional guidelines:
     def _create_default_config(self):
         """Create default configuration"""
         self.config["llm"] = {
-            "provider": "groq",
-            "model": "llama-3.1-8b-instant"
+            "provider": "groq"
         }
+        
+        self.config["groq"] = {
+            "api_key": "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",
+            "model": "mixtral-8x7b"
+        }
+        
+        self.config["openai"] = {
+            "api_key": "",  # Add your OpenAI API key here
+            "model": "gpt-3.5-turbo"
+        }
+        
+        self.config["common"] = {
+            "max_tokens": "4000",
+            "temperature": "0.7"
+        }
+        
         self.config["prompt"] = {
-            "current": self.DEFAULT_PROMPT
+            "hint": self.DEFAULT_HINT_PROMPT,
+            "card": self.DEFAULT_CARD_PROMPT
         }
         self.save()
 
@@ -57,19 +102,33 @@ Additional guidelines:
             self.config.add_section(section)
         self.config[section][key] = value
 
-    def get_prompt(self) -> str:
-        """Get the current prompt"""
-        return self.config.get("prompt", "current", fallback=self.DEFAULT_PROMPT)
+    def get_hint_prompt(self) -> str:
+        """Get the current hint generation prompt"""
+        return self.config.get("prompt", "hint", fallback=self.DEFAULT_HINT_PROMPT)
 
-    def set_prompt(self, prompt: str):
-        """Set the current prompt"""
+    def set_hint_prompt(self, prompt: str):
+        """Set the hint generation prompt"""
         if not self.config.has_section("prompt"):
             self.config.add_section("prompt")
-        self.config["prompt"]["current"] = prompt
+        self.config["prompt"]["hint"] = prompt
 
-    def get_default_prompt(self) -> str:
-        """Get the default prompt"""
-        return self.DEFAULT_PROMPT
+    def get_card_prompt(self) -> str:
+        """Get the current card generation prompt"""
+        return self.config.get("prompt", "card", fallback=self.DEFAULT_CARD_PROMPT)
+
+    def set_card_prompt(self, prompt: str):
+        """Set the card generation prompt"""
+        if not self.config.has_section("prompt"):
+            self.config.add_section("prompt")
+        self.config["prompt"]["card"] = prompt
+
+    def get_default_hint_prompt(self) -> str:
+        """Get the default hint generation prompt"""
+        return self.DEFAULT_HINT_PROMPT
+
+    def get_default_card_prompt(self) -> str:
+        """Get the default card generation prompt"""
+        return self.DEFAULT_CARD_PROMPT
 
     def save(self):
         """Save configuration to file"""

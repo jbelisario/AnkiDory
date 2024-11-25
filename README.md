@@ -1,9 +1,38 @@
-# Anki
+# AnkiDory - AI-Powered Deck Generator for Anki
 
-[![Build status](https://badge.buildkite.com/c9edf020a4aec976f9835e54751cc5409d843adbb66d043bd3.svg?branch=main)](https://buildkite.com/ankitects/anki-ci)
+AnkiDory is an intelligent Anki addon that helps you create high-quality study decks using advanced AI technology.
 
-This repo contains the source code for the computer version of
-[Anki](https://apps.ankiweb.net).
+## Features
+
+- Generate complete study decks with a single click
+- Customize difficulty level and number of cards
+- AI-powered content generation with helpful hints
+- Support for various topics and subjects
+- Integration with multiple LLM models
+
+## Installation
+
+1. Install the addon through Anki's addon manager
+2. Set up your environment variables:
+   ```bash
+   export GROQ_API_KEY="your-api-key-here"
+   ```
+   You can get your Groq API key from [Groq's website](https://console.groq.com/).
+
+## Usage
+
+1. Open Anki's deck browser
+2. Click "Generate Deck with AI"
+3. Enter your desired deck name
+4. Configure generation settings:
+   - Topic: Describe what you want to learn
+   - Difficulty: Choose between Beginner, Intermediate, or Advanced
+   - Number of cards: Select how many cards to generate
+   - LLM Model: Choose which AI model to use
+
+## License
+
+[LICENSE](./LICENSE)
 
 # About
 
@@ -27,7 +56,3 @@ Want to contribute to Anki? Check out the [Contribution Guidelines](./docs/contr
 ### Anki Contributors
 
 [CONTRIBUTORS](./CONTRIBUTORS)
-
-# License
-
-Anki's license: [LICENSE](./LICENSE)

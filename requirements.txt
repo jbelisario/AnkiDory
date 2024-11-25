@@ -1,0 +1,4 @@
+openai>=1.0.0
+groq>=0.3.0
+PyMuPDF>=1.23.0  # For PDF text extraction
+httpx>=0.24.0

@@ -8,6 +8,7 @@ from PyQt6.QtWidgets import (
     QTextEdit,
     QPushButton,
     QWidget,
+    QTabWidget,
     QSpinBox
 )
 from PyQt6.QtCore import Qt
@@ -23,7 +24,7 @@ class AISettingsDialog(QDialog):
     def setup_ui(self):
         """Initialize the dialog UI components"""
         self.setWindowTitle("AI Settings")
-        self.setMinimumWidth(500)
+        self.setMinimumWidth(800)
         
         layout = QVBoxLayout()
         self.setLayout(layout)
@@ -36,37 +37,70 @@ class AISettingsDialog(QDialog):
         model_label = QLabel("LLM Model:")
         self.model_combo = QComboBox()
         self.model_combo.addItems([
-            "llama-3.1-8b-instant",
-            "mixtral-8x7b-32768"
+            "mixtral-8x7b",
+            "llama-3.1-8b-instant"
         ])
-        current_model = self.config.get("llm", "model", fallback="llama-3.1-8b-instant")
+        current_model = self.config.get("llm", "model", fallback="mixtral-8x7b")
         self.model_combo.setCurrentText(current_model)
         
         model_layout.addWidget(model_label)
         model_layout.addWidget(self.model_combo)
         layout.addWidget(model_section)
 
-        # Hint Generation Section
+        # Tabs for different prompts
+        tabs = QTabWidget()
+        
+        # Card Generation Tab
+        card_tab = QWidget()
+        card_layout = QVBoxLayout()
+        card_tab.setLayout(card_layout)
+        
+        card_label = QLabel("Card Generation Prompt:")
+        card_layout.addWidget(card_label)
+        
+        self.card_prompt_edit = QTextEdit()
+        current_card_prompt = self.config.get_card_prompt()
+        self.card_prompt_edit.setText(current_card_prompt)
+        card_layout.addWidget(self.card_prompt_edit)
+        
+        # Card prompt character counter
+        card_counter_layout = QHBoxLayout()
+        self.card_char_counter = QLabel("0/4000 characters")
+        card_counter_layout.addStretch()
+        card_counter_layout.addWidget(self.card_char_counter)
+        card_layout.addLayout(card_counter_layout)
+        
+        tabs.addTab(card_tab, "Card Generation")
+        
+        # Hint Generation Tab
+        hint_tab = QWidget()
+        hint_layout = QVBoxLayout()
+        hint_tab.setLayout(hint_layout)
+        
         hint_label = QLabel("Hint Generation Prompt:")
-        layout.addWidget(hint_label)
-
-        self.prompt_edit = QTextEdit()
-        current_prompt = self.config.get_prompt()
-        self.prompt_edit.setText(current_prompt)
-        layout.addWidget(self.prompt_edit)
-
-        # Character Counter
-        counter_layout = QHBoxLayout()
-        self.char_counter = QLabel("0/2000 characters")
-        counter_layout.addStretch()
-        counter_layout.addWidget(self.char_counter)
-        layout.addLayout(counter_layout)
+        hint_layout.addWidget(hint_label)
+        
+        self.hint_prompt_edit = QTextEdit()
+        current_hint_prompt = self.config.get_hint_prompt()
+        self.hint_prompt_edit.setText(current_hint_prompt)
+        hint_layout.addWidget(self.hint_prompt_edit)
+        
+        # Hint prompt character counter
+        hint_counter_layout = QHBoxLayout()
+        self.hint_char_counter = QLabel("0/2000 characters")
+        hint_counter_layout.addStretch()
+        hint_counter_layout.addWidget(self.hint_char_counter)
+        hint_layout.addLayout(hint_counter_layout)
+        
+        tabs.addTab(hint_tab, "Hint Generation")
+        
+        layout.addWidget(tabs)
 
         # Buttons
         button_layout = QHBoxLayout()
         
         self.reset_button = QPushButton("Reset to Default")
-        self.reset_button.clicked.connect(self.reset_prompt)
+        self.reset_button.clicked.connect(self.reset_prompts)
         
         self.save_button = QPushButton("Save")
         self.save_button.setDefault(True)
@@ -83,34 +117,33 @@ class AISettingsDialog(QDialog):
         layout.addLayout(button_layout)
 
         # Connect signals
-        self.prompt_edit.textChanged.connect(self.update_char_counter)
-        self.update_char_counter()
+        self.card_prompt_edit.textChanged.connect(lambda: self.update_char_counter(self.card_prompt_edit, self.card_char_counter, 4000))
+        self.hint_prompt_edit.textChanged.connect(lambda: self.update_char_counter(self.hint_prompt_edit, self.hint_char_counter, 2000))
+        self.update_char_counter(self.card_prompt_edit, self.card_char_counter, 4000)
+        self.update_char_counter(self.hint_prompt_edit, self.hint_char_counter, 2000)
 
-    def update_char_counter(self):
-        """Update the character counter label"""
-        count = len(self.prompt_edit.toPlainText())
-        self.char_counter.setText(f"{count}/2000 characters")
-        if count > 2000:
-            self.char_counter.setStyleSheet("color: red")
+    def update_char_counter(self, text_edit: QTextEdit, counter: QLabel, max_chars: int):
+        """Update character counter for a text edit"""
+        count = len(text_edit.toPlainText())
+        counter.setText(f"{count}/{max_chars} characters")
+        if count > max_chars:
+            counter.setStyleSheet("color: red;")
         else:
-            self.char_counter.setStyleSheet("")
+            counter.setStyleSheet("")
 
-    def reset_prompt(self):
-        """Reset the prompt to default"""
-        default_prompt = self.config.get_default_prompt()
-        self.prompt_edit.setText(default_prompt)
+    def reset_prompts(self):
+        """Reset prompts to default values"""
+        self.card_prompt_edit.setText(self.config.get_default_card_prompt())
+        self.hint_prompt_edit.setText(self.config.get_default_hint_prompt())
 
     def save_settings(self):
-        """Save the settings and close the dialog"""
-        # Validate prompt length
-        if len(self.prompt_edit.toPlainText()) > 2000:
-            from aqt.utils import showWarning
-            showWarning("Prompt is too long (max 2000 characters)")
-            return
-
-        # Save settings
+        """Save the current settings"""
+        # Save model selection
         self.config.set("llm", "model", self.model_combo.currentText())
-        self.config.set_prompt(self.prompt_edit.toPlainText())
-        self.config.save()
         
+        # Save prompts
+        self.config.set_card_prompt(self.card_prompt_edit.toPlainText())
+        self.config.set_hint_prompt(self.hint_prompt_edit.toPlainText())
+        
+        self.config.save()
         self.accept()
