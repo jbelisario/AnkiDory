@@ -14,7 +14,12 @@ def init_db():
     """Initialize the addon database."""
     logger.debug("Initializing database...")
     try:
-        db_path = os.path.join(os.path.dirname(__file__), "ankidory.db")
+        # Create database directory if it doesn't exist
+        db_dir = os.path.join(os.path.expanduser("~"), ".ankidory")
+        os.makedirs(db_dir, exist_ok=True)
+        
+        # Use the database in the user's home directory
+        db_path = os.path.join(db_dir, "ankidory.db")
         
         # Create database connection
         conn = sqlite3.connect(db_path)
@@ -35,6 +40,14 @@ def init_db():
                 back TEXT NOT NULL,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 FOREIGN KEY (deck_id) REFERENCES decks(id)
+            );
+            
+            CREATE TABLE IF NOT EXISTS hints (
+                id INTEGER PRIMARY KEY,
+                card_id INTEGER,
+                hint_text TEXT NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (card_id) REFERENCES cards(id)
             );
         """)
         
